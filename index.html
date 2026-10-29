@@ -14,6 +14,7 @@
         --text: #e5ebff;
         --muted: #9aa9c7;
         --danger: #ff6b6b;
+        --warning: #ffb454;
       }
 
       * { box-sizing: border-box; }
@@ -99,7 +100,7 @@
         transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
       }
 
-      .client-btn:hover {
+      .client-btn:hover:not(:disabled) {
         transform: translateY(-1px);
         border-color: rgba(78, 201, 245, 0.8);
         box-shadow: 0 8px 18px rgba(78, 201, 245, 0.15);
@@ -108,6 +109,34 @@
       .client-btn.active {
         background: linear-gradient(180deg, rgba(78, 201, 245, 0.18), rgba(78, 201, 245, 0.08));
         border-color: rgba(78, 201, 245, 0.9);
+      }
+
+      .client-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        border-color: rgba(255,180,84,0.4);
+      }
+
+      .client-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-top: 6px;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      .size-badge {
+        border-radius: 999px;
+        padding: 3px 7px;
+        font-size: 0.68rem;
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .size-badge.large {
+        color: var(--warning);
+        border-color: rgba(255,180,84,0.4);
       }
 
       .viewer {
@@ -197,52 +226,81 @@
           <div class="frame-wrap">
             <iframe id="clientFrame" title="Selected client"></iframe>
           </div>
-          <div class="note">Files over 25 MB are excluded from this launcher to keep it within the requested size limit.</div>
+          <div class="note">This launcher includes all client HTML files in the repo. Files over 25 MB are marked as large and may not load reliably in-browser.</div>
         </main>
       </div>
     </div>
 
     <script>
       const clients = [
-        { name: '1.8', file: '1.8.html' },
-        { name: 'Astra Client', file: 'Astra Client.html' },
-        { name: 'Kerosene Client', file: 'Kerosene Client.html' },
-        { name: 'Kerosene', file: 'Kerosene.html' },
-        { name: 'N0VA CLIENT', file: 'N0VA CLIENT.html' },
-        { name: 'Nebula Client (Maybe Ratted)', file: 'Nebula Client (Maybe Ratted).html' },
-        { name: 'NitClient 2.0', file: 'NitClient 2.0.html' },
-        { name: 'OddFuture Client', file: 'OddFuture Client.html' },
-        { name: 'Resent PvP Client (Press K for Menu)', file: 'Resent PvP Client (Press K for Menu).html' }
+        { name: '1.8', file: '1.8.html', sizeMb: 17.4 },
+        { name: 'Astra Client', file: 'Astra Client.html', sizeMb: 0.001 },
+        { name: 'EaglerForge 1.2.5 1.8 Offline International', file: 'EaglerForge_1.2.5_1.8_Offline_International (1).html', sizeMb: 24.0 },
+        { name: 'Kerosene Client', file: 'Kerosene Client.html', sizeMb: 19.9 },
+        { name: 'Kerosene', file: 'Kerosene.html', sizeMb: 19.9 },
+        { name: 'N0VA CLIENT', file: 'N0VA CLIENT.html', sizeMb: 16.1 },
+        { name: 'Nebula Client (Maybe Ratted)', file: 'Nebula Client (Maybe Ratted).html', sizeMb: 12.2 },
+        { name: 'NitClient 2.0', file: 'NitClient 2.0.html', sizeMb: 19.1 },
+        { name: 'OddFuture Client', file: 'OddFuture Client.html', sizeMb: 10.8 },
+        { name: 'Resent PvP Client (Press K for Menu)', file: 'Resent PvP Client (Press K for Menu).html', sizeMb: 20.1 }
       ];
 
+      const MAX_SIZE_MB = 25;
       const clientList = document.getElementById('clientList');
       const frame = document.getElementById('clientFrame');
       const activeTitle = document.getElementById('activeTitle');
       const openLink = document.getElementById('openInNewTab');
 
-      function setClient(file, name) {
-        activeTitle.textContent = name;
-        frame.src = file;
-        openLink.href = file;
+      function formatSize(sizeMb) {
+        if (sizeMb >= 1) return `${sizeMb.toFixed(1)} MB`;
+        return `${(sizeMb * 1000).toFixed(0)} KB`;
+      }
+
+      function setClient(file, name, isLarge) {
+        activeTitle.textContent = name + (isLarge ? ' (Large file)' : '');
+        if (isLarge) {
+          frame.src = 'about:blank';
+          openLink.href = file;
+          alert('This client is larger than 25 MB and may not load properly in-browser. It is still available via the Open in new tab link.');
+        } else {
+          frame.src = file;
+          openLink.href = file;
+        }
 
         document.querySelectorAll('.client-btn').forEach((btn) => {
           btn.classList.toggle('active', btn.dataset.file === file);
         });
       }
 
-      clients.forEach((client, index) => {
+      clients.forEach((client) => {
         const btn = document.createElement('button');
+        const isLarge = client.sizeMb > MAX_SIZE_MB;
+
         btn.type = 'button';
         btn.className = 'client-btn';
         btn.dataset.file = client.file;
-        btn.textContent = client.name;
-        btn.addEventListener('click', () => setClient(client.file, client.name));
-        clientList.appendChild(btn);
+        btn.disabled = isLarge;
+        btn.innerHTML = `
+          <div>${client.name}</div>
+          <div class="client-meta">
+            <span>${isLarge ? 'Large file' : 'Ready to load'}</span>
+            <span class="size-badge ${isLarge ? 'large' : ''}">${formatSize(client.sizeMb)}</span>
+          </div>
+        `;
 
-        if (index === 0) {
-          setClient(client.file, client.name);
-        }
+        btn.addEventListener('click', () => {
+          if (isLarge) {
+            setClient(client.file, client.name, true);
+            return;
+          }
+          setClient(client.file, client.name, false);
+        });
+
+        clientList.appendChild(btn);
       });
+
+      const first = clients[0];
+      setClient(first.file, first.name, first.sizeMb > MAX_SIZE_MB);
     </script>
   </body>
 </html>
